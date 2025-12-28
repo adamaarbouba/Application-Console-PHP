@@ -15,7 +15,7 @@ services:
     image: mariadb:10.11
     restart: always
     environment:
-      MYSQL_DATABASE: DigitalGarden
+      MYSQL_DATABASE: payment_system
       MYSQL_ROOT_PASSWORD: 12344321
       MYSQL_PASSWORD: 12344321
     volumes:
