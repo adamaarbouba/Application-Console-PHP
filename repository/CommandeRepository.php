@@ -8,12 +8,15 @@ class CommandeRepository implements BaseRepository
 {
 
     private $conn;
+    public $db;
+
 
     // private $clientRepository; 
 
     public function __construct()
     {
-        $this->conn = new Database()->getConnection();
+        $this->db = new Database();
+        $this->conn = $this->db->getConnection();
         // $this->clientRepository = new ClientRepository();
     }
 
@@ -80,7 +83,7 @@ class CommandeRepository implements BaseRepository
     public function create($commande)
     {
 
-    
+
         $query = "insert into Commandes(montantTotal,status, client_id) 
         values(:montantTotal, :status, :client_id)";
 
@@ -119,9 +122,8 @@ class CommandeRepository implements BaseRepository
             ]);
 
             return $commande;
-
         } catch (\Throwable $th) {
-            throw new EntityCreationException(" commande with id: " . $commande->id . "update error: ".$th->getMessage(), 403);
+            throw new EntityCreationException(" commande with id: " . $commande->id . "update error: " . $th->getMessage(), 403);
         }
     }
 

@@ -8,11 +8,15 @@ class PaymentRepository implements BaseRepository
 {
 
     private $conn;
+    public $db;
 
+
+    // private $clientRepository; 
 
     public function __construct()
     {
-        $this->conn = new Database()->getConnection();
+        $this->db = new Database();
+        $this->conn = $this->db->getConnection();
     }
 
 
@@ -102,9 +106,9 @@ class PaymentRepository implements BaseRepository
                         ":paiment_id" => $payment->id,
                         ":creditCardNumber" => $payment->creditCardNumber
                     ]);
-                }else if ($payment instanceof PayPal) {
+                } else if ($payment instanceof PayPal) {
 
-                   $query = "insert into paypals(paiment_id, paymentEmail, paymentPassword) 
+                    $query = "insert into paypals(paiment_id, paymentEmail, paymentPassword) 
                       values(:paiment_id, :paymentEmail, :paymentPassword)";
                     $stmt = $this->conn->prepare($query);
                     $stmt->execute([
@@ -112,7 +116,7 @@ class PaymentRepository implements BaseRepository
                         ":paymentEmail" => $payment->paymentEmail,
                         ":paymentPassword" => $payment->paymentPassword
                     ]);
-                }else{
+                } else {
 
                     $query = "insert into virements(paiment_id, rib) 
                       values(:paiment_id, :rib)";
@@ -130,7 +134,7 @@ class PaymentRepository implements BaseRepository
 
             throw new EntityCreationException(" Payment creation error ", 403);
         } catch (\Throwable $th) {
-            throw new EntityCreationException(" Payment creation error ".$th->getMessage(), 403);
+            throw new EntityCreationException(" Payment creation error " . $th->getMessage(), 403);
         }
     }
 

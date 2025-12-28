@@ -12,8 +12,8 @@ class Commande
 
 
     public const STATUS_EN_ATTENTE  = "Pending";
-    public const STATUS_ANNULE  = "Out for Delivery";
-    public const STATUS_PAYE  = "Delivered";
+    public const STATUS_ANNULE  = "Cancel";
+    public const STATUS_PAYE  = "Paid";
 
 
 

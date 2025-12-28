@@ -1,12 +1,12 @@
 <?php
 
-require_once "./exception/ValidationException.php";
+require_once __DIR__ . "/../exception/ValidationException.php";
 class Database {
 
-    private $host = "localhost";
-    private $dbName = "syspaiement";
+    private $host = "db";
+    private $dbName = "payment_system";
     private $username = "root";
-    private $password = "";
+    private $password = "12344321";
 
 
     private $conn;

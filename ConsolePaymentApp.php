@@ -84,10 +84,6 @@ class ConsolePaymentApp
         echo "│ 3. Créer une commande                                   │\n";
         echo "│ 4. Lister les commandes                                 │\n";
         echo "│ 5. Créer un paiement                                    │\n";
-        echo "│ 6. Traiter un paiement                                  │\n";
-        echo "│ 7. Consulter le statut d'un paiement                    │\n";
-        echo "│ 8. Lister tous les paiements                            │\n";
-        echo "│ 0. Quitter                                              │\n";
         echo "└─────────────────────────────────────────────────────────┘\n";
     }
 

@@ -1,18 +1,24 @@
 <?php
 
 
-require_once "./config/Database.php";
-require_once "BaseRepository.php";
+
+require_once __DIR__ . "/../config/Database.php";
+require_once __DIR__ . "/BaseRepository.php";
+// require_once "../config/Database.php";
+
+// require_once "./BaseRepository.php";
 
 class ClientRepository implements BaseRepository
 {
 
-    private $conn;
+    public $conn;
+    public $db;
 
 
     public function __construct()
     {
-        $this->conn = new Database()->getConnection();
+        $this->db = new Database();
+        $this->conn = $this->db->getConnection();
     }
 
 
@@ -35,7 +41,8 @@ class ClientRepository implements BaseRepository
         return $clients;
     }
 
-    public function findById($id) {
+    public function findById($id)
+    {
 
         $query = "select * from clients where id = :id";
 
@@ -48,19 +55,16 @@ class ClientRepository implements BaseRepository
             $row = $stmt->fetch(PDO::FETCH_OBJ);
 
             if (empty($row)) {
-                throw new EntitySearchException(" Client search with id: ".$id." error ", 403);
+                throw new EntitySearchException(" Client search with id: " . $id . " error ", 403);
             }
 
             $client = new Client($row->name, $row->email);
             $client->setId($id);
 
             return $client;
-
-
         } catch (\Throwable $th) {
-                throw new EntitySearchException(" Client search with id: ".$id." error ", 403);
+            throw new EntitySearchException(" Client search with id: " . $id . " error ", 403);
         }
-
     }
 
     public function create($client)
@@ -89,7 +93,8 @@ class ClientRepository implements BaseRepository
     }
 
 
-    public function update($id) {
+    public function update($id)
+    {
 
 
         $client = $this->findById($id);
@@ -104,15 +109,15 @@ class ClientRepository implements BaseRepository
                 ":email" => $client->email
             ]);
 
-            throw new EntityCreationException(" Client with id: ".$client->id. "update error", 403);
+            throw new EntityCreationException(" Client with id: " . $client->id . "update error", 403);
         } catch (\Throwable $th) {
-            throw new EntityCreationException(" Client with id: ".$client->id. "update error", 403);
+            throw new EntityCreationException(" Client with id: " . $client->id . "update error", 403);
         }
     }
 
 
-    public function delete($id) {
-         $client = $this->findById($id);
-
+    public function delete($id)
+    {
+        $client = $this->findById($id);
     }
 }
