@@ -1,4 +1,5 @@
-create database payment_system;
+DROP DATABASE IF EXISTS payment_system;
+CREATE DATABASE payment_system;
 USE payment_system;
 
 CREATE TABLE clients (
@@ -11,34 +12,34 @@ CREATE TABLE commandes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     client_id INT NOT NULL,
     montantTotal float NOT NULL,
-    status ENUM('Pending', 'Out for Delivery', 'Delivered') NOT NULL ,
-
-   FOREIGN KEY (client_id)REFERENCES clients(id)     
+    status ENUM('Pending', 'Out for Delivery', 'Delivered') NOT NULL,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE 
 );
 
-CREATE TABLE  paiements (
+CREATE TABLE paiements (
     id INT AUTO_INCREMENT PRIMARY KEY,
     commande_id int,
     montant float NOT NULL,
-    status ENUM('Unpaid', 'Paid') NOT NULL ,
-     date_paiment DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (commande_id)REFERENCES commandes(id)
+    status ENUM('Unpaid', 'Paid') NOT NULL,
+    date_paiment DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (commande_id) REFERENCES commandes(id) ON DELETE CASCADE
 );
 
-create table virements (
-paiment_id INT ,
- rib VARCHAR (50),
- FOREIGN KEY (paiment_id)REFERENCES  paiements(id)
+CREATE TABLE virements (
+    paiment_id INT,
+    rib VARCHAR (50),
+    FOREIGN KEY (paiment_id) REFERENCES paiements(id) ON DELETE CASCADE
 );
-create table cartebancaires (
- paiment_id INT ,
- creditCardNumber int,
- FOREIGN KEY (paiment_id)REFERENCES  paiements(id)
+
+CREATE TABLE cartebancaires (
+    paiment_id INT,
+    creditCardNumber int,
+    FOREIGN KEY (paiment_id) REFERENCES paiements(id) ON DELETE CASCADE
 );
-create table paypals (
-paiment_id INT ,
-paymentEmail VARCHAR (20),
-paymentPassword VARCHAR (30),
- FOREIGN KEY (paiment_id)REFERENCES  paiements(id)
+
+CREATE TABLE paypals (
+    paiment_id INT,
+    paymentEmail VARCHAR (20),
+    paymentPassword VARCHAR (30),
+    FOREIGN KEY (paiment_id) REFERENCES paiements(id) ON DELETE CASCADE
 );
