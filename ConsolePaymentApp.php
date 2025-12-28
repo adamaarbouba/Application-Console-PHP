@@ -51,22 +51,21 @@ class ConsolePaymentApp
                     "3" => $this->createCommande(),
                     "4" => $this->listAllCommandes(),
                     "5" => $this->createPayment(),
+                    "6" => $this->ListPaiments(),
+                    "7" => $this->DeletePayment(),
                     "0" => $this->exitApp()
                 };
             }
         } catch (ValidationException $e) {
             echo "\n \n Code: " . $e->getCode() . " Message:" . $e->getMessage();
             // $this->run();
-        }
-         catch (EntityCreationException $e) {
+        } catch (EntityCreationException $e) {
             echo "\n \n Code: " . $e->getCode() . " Message:" . $e->getMessage();
             // $this->run();
-        }
-        catch (ServerErrorException $e) {
+        } catch (ServerErrorException $e) {
             echo "\n \n Code: " . $e->getCode() . " Message:" . $e->getMessage();
             // $this->run();
-        }
-         catch (EntitySearchException $e) {
+        } catch (EntitySearchException $e) {
             echo "\n \n Code: " . $e->getCode() . " Message:" . $e->getMessage();
             // $this->run();
         }
@@ -84,6 +83,9 @@ class ConsolePaymentApp
         echo "│ 3. Créer une commande                                   │\n";
         echo "│ 4. Lister les commandes                                 │\n";
         echo "│ 5. Créer un paiement                                    │\n";
+        echo "│ 6. List Paiments                                        │\n";
+        echo "│ 7. Delete Payment                                       │\n";
+        echo "│ 0. Exit App                                             │\n";
         echo "└─────────────────────────────────────────────────────────┘\n";
     }
 
@@ -97,7 +99,6 @@ class ConsolePaymentApp
 
         if (empty($input) && $input != 0) {
             throw new ValidationException("ERROR vient de:  " . $prompt, 100);
-            $this->readUserInput($prompt);
         }
         return $input;
     }
@@ -114,7 +115,7 @@ class ConsolePaymentApp
 
         echo "\n\n";
         echo "┌────────────────────────────┐\n";
-        echo "│ Payment  MENU              │\n";
+        echo "│ Payment Menu               │\n";
         echo "├────────────────────────────┤\n";
         echo "│ 1. Virement                │\n";
         echo "│ 2. Carte                   │\n";
@@ -130,10 +131,15 @@ class ConsolePaymentApp
         };
 
         $payment->setCommande($commande);
-        $payment->pay();
-        
-        $payment = $this->paymentRepository->create($payment);
 
+        // 1. Process the payment (Status becomes "Paid")
+        $payment->pay();
+
+        // 2. *** NEW FIX: Update the Commande status to match the Payment ***
+        if ($payment->getStatus() === "Paid") {
+            $commande->setStatus("Paid");
+        }
+        $payment = $this->paymentRepository->create($payment);
         $this->commandeRepository->update($commande);
     }
 
@@ -211,11 +217,11 @@ class ConsolePaymentApp
     }
 
 
-    
+
     public function createCarteInstance($commande)
     {
         $numeroCarte = $this->readUserInput("\n Entrez le numéro de la carte: ");
-        $payment = new Carte($commande->montantTotal,$numeroCarte );
+        $payment = new Carte($commande->montantTotal, $numeroCarte);
         return $payment;
     }
 
@@ -223,8 +229,79 @@ class ConsolePaymentApp
     {
         $email = $this->readUserInput("\n Entrez l'email: ");
         $password = $this->readUserInput("\n Entrez le password: ");
-        $payment = new PayPal($commande->montantTotal,$email, $password );
+        $payment = new PayPal($commande->montantTotal, $email, $password);
         return $payment;
+    }
+    public function ListPaiments()
+    {
+        echo "┌─────────────────────────────────────────────────────────┐\n";
+        echo "│ History                                                 │\n";
+        echo "└─────────────────────────────────────────────────────────┘\n";
+
+
+
+        $this->listAllClients();
+
+        $id = $this->readUserInput("\nEntrez l'ID du Client pour voir ses paiements : ");
+
+        try {
+            $payments = $this->paymentRepository->findByClient($id);
+
+            if (empty($payments)) {
+                echo "\nAucun paiement trouvé pour ce client.\n";
+                return;
+            }
+
+            printf(
+                "\n%-5s %-10s %-10s %-12s %-20s %-25s\n",
+                "ID",
+                "Cmd ID",
+                "Montant",
+                "Status",
+                "Date",
+                "Type"
+            );
+            echo "\n";
+
+            foreach ($payments as $p) {
+                $details = "Inconnu";
+                if (!empty($p->rib)) {
+                    $details = "Virement (RIB: " . $p->rib . ")";
+                } elseif (!empty($p->creditCardNumber)) {
+                    $details = "Carte (N°: " . $p->creditCardNumber . ")";
+                } elseif (!empty($p->paymentEmail)) {
+                    $details = "PayPal (" . $p->paymentEmail . ")";
+                }
+
+                printf(
+                    "%-5s %-10s %-10s %-12s %-20s %-25s\n",
+                    $p->id,
+                    $p->commande_id,
+                    $p->montant,
+                    $p->status,
+                    $p->date_paiment,
+                    $details
+                );
+            }
+            echo "\n";
+        } catch (Exception $e) {
+            echo "\nERREUR " . $e->getMessage() . "\n";
+        }
+    }
+    public function DeletePayment()
+    {
+        $this->ListPaiments();
+        $id = $this->readUserInput("Entrez l'ID du paiement à supprimer: ");
+
+        try {
+            $this->paymentRepository->delete($id);
+
+            echo "\nSUCCESS $id et Supprime\n";
+        } catch (EntitySearchException $e) {
+            echo "\nERREUR Paiement introuvable id : $id.\n";
+        } catch (Exception $e) {
+            echo "\nERREUR " . $e->getMessage() . "\n";
+        }
     }
 
     public function exitApp()

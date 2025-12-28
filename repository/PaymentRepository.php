@@ -1,17 +1,17 @@
 <?php
 
-
 require_once "./config/Database.php";
 require_once "BaseRepository.php";
+require_once "./entity/Virement.php";
+require_once "./entity/Carte.php";
+require_once "./entity/PayPal.php";
+require_once "./exception/EntitySearchException.php";
+require_once "./exception/EntityCreationException.php";
 
 class PaymentRepository implements BaseRepository
 {
-
     private $conn;
-    public $db;
-
-
-    // private $clientRepository; 
+    private $db;
 
     public function __construct()
     {
@@ -19,78 +19,62 @@ class PaymentRepository implements BaseRepository
         $this->conn = $this->db->getConnection();
     }
 
-
     public function findAll()
     {
-        // $query = "select * from commandes where 1=1";
-        $query = "select cm.id as cmd_id, cm.montantTotal,cm.status, cm.client_id, cl.name, cl.email from commandes cm inner join clients cl on cl.id = cm.client_id";
-
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_OBJ);
-
-        $commandes = [];
-        foreach ($result as $obj) {
-
-
-            // $client = $this->clientRepository->findById($obj->id);
-            $client = new Client($obj->name, $obj->email);
-            $client->setId($obj->client_id);
-
-            $cmd = new Commande($obj->montantTotal, $obj->status);
-            $cmd->setId($obj->cmd_id);
-            $cmd->setClient($client);
-            array_push($commandes, $cmd);
-        }
-
-        return $commandes;
+        return [];
     }
 
     public function findById($id)
     {
-
-        $query = "select cm.id as cmd_id, cm.montantTotal,cm.status, cm.client_id, cl.name, cl.email 
-                    from commandes cm 
-                    inner join clients cl on cl.id = cm.client_id
-                    where cm.id = :id";
+        $query = "SELECT p.*, 
+                         v.rib, 
+                         cb.creditCardNumber, 
+                         py.paymentEmail, py.paymentPassword
+                  FROM paiements p
+                  LEFT JOIN virements v ON p.id = v.paiment_id
+                  LEFT JOIN cartebancaires cb ON p.id = cb.paiment_id
+                  LEFT JOIN paypals py ON p.id = py.paiment_id
+                  WHERE p.id = :id";
 
         try {
             $stmt = $this->conn->prepare($query);
-            $stmt->execute([
-                ":id" => $id
-            ]);
-
+            $stmt->execute([":id" => $id]);
             $row = $stmt->fetch(PDO::FETCH_OBJ);
 
-            if (empty($row)) {
-                throw new EntitySearchException(" Commande search with id: " . $id . " error ", 403);
+            if (!$row) {
+                throw new EntitySearchException("Payment with ID $id not found.", 404);
             }
 
-            $client = new Client($row->name, $row->email);
-            $client->setId($row->client_id);
+            if ($row->rib) {
+                $payment = new Virement($row->montant, $row->rib);
+            } elseif ($row->creditCardNumber) {
+                $payment = new Carte($row->montant, $row->creditCardNumber);
+            } elseif ($row->paymentEmail) {
+                $payment = new PayPal($row->montant, $row->paymentEmail, $row->paymentPassword);
+            } else {
+                $payment = new Virement($row->montant, "N/A");
+            }
 
-            $cmd = new Commande($row->montantTotal, $row->status);
-            $cmd->setId($row->cmd_id);
-            $cmd->setClient($client);
+            $payment->setId($row->id);
+            $payment->setStatus($row->status);
 
-            return $cmd;
+            return $payment;
         } catch (\Throwable $th) {
-            throw new EntitySearchException("Commande search with id: " . $id . " error ", 403);
+            throw new EntitySearchException("Error searching for payment: " . $th->getMessage(), 403);
         }
     }
 
     public function create($payment)
     {
-
-        $query = "insert into paiements(montant,status, commande_id) 
-        values(:montant,:status,:commande_id)";
+        $query = "INSERT INTO paiements(montant, status, commande_id) 
+                  VALUES(:montant, :status, :commande_id)";
 
         try {
             $stmt = $this->conn->prepare($query);
             $stmt->execute([
-                ":montant" => $payment->montant,
-                ":status" => $payment->status,
-                ":commande_id" => $payment->commande->id,
+                ":montant" => $payment->getMontant(),
+                ":status" => $payment->getStatus(),
+                ":commande_id" => $payment->getCommande()->id,
             ]);
 
             (int) $id = $this->conn->lastInsertId();
@@ -99,71 +83,90 @@ class PaymentRepository implements BaseRepository
                 $payment->setId($id);
 
                 if ($payment instanceof Carte) {
-                    $query = "insert into cartebancaires(paiment_id, creditCardNumber) 
-                      values(:paiment_id, :creditCardNumber)";
+                    $query = "INSERT INTO cartebancaires(paiment_id, creditCardNumber) 
+                              VALUES(:paiment_id, :creditCardNumber)";
                     $stmt = $this->conn->prepare($query);
                     $stmt->execute([
-                        ":paiment_id" => $payment->id,
+                        ":paiment_id" => $id,
                         ":creditCardNumber" => $payment->creditCardNumber
                     ]);
                 } else if ($payment instanceof PayPal) {
-
-                    $query = "insert into paypals(paiment_id, paymentEmail, paymentPassword) 
-                      values(:paiment_id, :paymentEmail, :paymentPassword)";
+                    $query = "INSERT INTO paypals(paiment_id, paymentEmail, paymentPassword) 
+                              VALUES(:paiment_id, :paymentEmail, :paymentPassword)";
                     $stmt = $this->conn->prepare($query);
                     $stmt->execute([
-                        ":paiment_id" => $payment->id,
+                        ":paiment_id" => $id,
                         ":paymentEmail" => $payment->paymentEmail,
                         ":paymentPassword" => $payment->paymentPassword
                     ]);
                 } else {
-
-                    $query = "insert into virements(paiment_id, rib) 
-                      values(:paiment_id, :rib)";
+                    $query = "INSERT INTO virements(paiment_id, rib) 
+                              VALUES(:paiment_id, :rib)";
                     $stmt = $this->conn->prepare($query);
                     $stmt->execute([
-                        ":paiment_id" => $payment->id,
+                        ":paiment_id" => $id,
                         ":rib" => $payment->rib
                     ]);
                 }
-
-
                 return $payment;
             }
-
-
-            throw new EntityCreationException(" Payment creation error ", 403);
         } catch (\Throwable $th) {
-            throw new EntityCreationException(" Payment creation error " . $th->getMessage(), 403);
+            throw new EntityCreationException("Payment creation error: " . $th->getMessage(), 403);
         }
     }
 
-
-    public function update($id)
+    public function update($payment)
     {
-
-
-        $client = $this->findById($id);
-
-        $query = "update clients set name =:name, email =:email where id=:id";
+        $query = "UPDATE paiements SET status = :status WHERE id = :id";
 
         try {
             $stmt = $this->conn->prepare($query);
             $stmt->execute([
-                ":id" => $client->id,
-                ":name" => $client->name,
-                ":email" => $client->email
+                ":id" => $payment->getId(),
+                ":status" => $payment->getStatus()
             ]);
 
-            throw new EntityCreationException(" Client with id: " . $client->id . "update error", 403);
+            return true;
         } catch (\Throwable $th) {
-            throw new EntityCreationException(" Client with id: " . $client->id . "update error", 403);
+            throw new EntityCreationException("Payment update error: " . $th->getMessage(), 500);
         }
     }
 
+    public function findByClient($clientId)
+    {
+        $query = "SELECT p.id, p.montant, p.status, p.date_paiment, p.commande_id,
+                         v.rib, 
+                         cb.creditCardNumber, 
+                         py.paymentEmail
+                  FROM paiements p
+                  INNER JOIN commandes c ON p.commande_id = c.id
+                  LEFT JOIN virements v ON p.id = v.paiment_id
+                  LEFT JOIN cartebancaires cb ON p.id = cb.paiment_id
+                  LEFT JOIN paypals py ON p.id = py.paiment_id
+                  WHERE c.client_id = :client_id
+                  ORDER BY p.date_paiment DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([':client_id' => $clientId]);
+            return $stmt->fetchAll(PDO::FETCH_OBJ);
+        } catch (\Throwable $th) {
+            throw new EntitySearchException("Error fetching payments: " . $th->getMessage(), 500);
+        }
+    }
 
     public function delete($id)
     {
-        $client = $this->findById($id);
+        $this->findById($id);
+
+        $query = "DELETE FROM paiements WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([":id" => $id]);
+            return true;
+        } catch (\Throwable $th) {
+            throw new EntityCreationException("Impossible de supprimer ce paiement. Erreur: " . $th->getMessage(), 503);
+        }
     }
 }

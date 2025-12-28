@@ -12,15 +12,14 @@ abstract class Payment
     protected $date;
     protected $status;
     protected $montant;
-    protected $commande;  // de type object de la classe Commande
+    protected $commande;
 
 
-    public function __construct($montant) {
+    public function __construct($montant)
+    {
         $this->montant = $montant;
         $this->status = self::UNPAID;
     }
-
-
     abstract public function pay();
 
 
@@ -55,5 +54,22 @@ abstract class Payment
         }
 
         $this->status = $status;
+    }
+
+    public function getMontant()
+    {
+        return $this->montant;
+    }
+    public function getStatus()
+    {
+        return $this->status;
+    }
+    public function getCommande()
+    {
+        return $this->commande;
+    }
+    public function getId()
+    {
+        return $this->id;
     }
 }

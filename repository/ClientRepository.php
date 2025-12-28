@@ -93,6 +93,7 @@ class ClientRepository implements BaseRepository
     }
 
 
+
     public function update($id)
     {
 
@@ -108,8 +109,6 @@ class ClientRepository implements BaseRepository
                 ":name" => $client->name,
                 ":email" => $client->email
             ]);
-
-            throw new EntityCreationException(" Client with id: " . $client->id . "update error", 403);
         } catch (\Throwable $th) {
             throw new EntityCreationException(" Client with id: " . $client->id . "update error", 403);
         }
